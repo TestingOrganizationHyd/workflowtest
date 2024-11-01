@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write  # Allows the action to push to the repository
 
-      steps:
+    steps:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
