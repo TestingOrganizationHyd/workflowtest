@@ -11,34 +11,43 @@ jobs:
     permissions:
       contents: write  # Allows the action to push to the repository
 
-    steps:
+        steps:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           fetch-depth: 0  # Fetch all history for all branches and tags
 
+      - name: Run tests
+        id: run_tests
+        run: |
+          # Run your tests here
+          echo "Running tests..."
+          # Simulate test failure
+          exit 1
 
-      - name: Run Check
+      - name: Revert last commit if tests fail
+        if: failure()
         run: |
-          echo "Running test"
-          exit 1  # Simulating failure for testing purposes
- 
-      - name: Revert last commit
-        if: failure()  # This step runs if the previous steps fail
-        env:
-          PAT_TOKEN: ${{secrets.PAT_TOKEN}}
-        run: |
-          #git fetch origin 
-          git log --oneline
-          echo "Commit count: $(git rev-list --count HEAD)"
           git config --local user.email "ashfaqonly1@gmail.com"
           git config --local user.name "Ashfaq"
-          if [ $(git rev-list --count HEAD) -gt 1 ]; then
-            git revert -m 1 HEAD --no-edit
-            git status
-            git remote set-url origin https://$PAT_TOKEN@github.com/TestingOrganizationHyd/workflowtest.git
-            git push origin main
-          else
-            echo "Not enough commits to revert"
-          fi
-          
+          git revert -m 1 HEAD --no-edit
+          git push origin HEAD:revert-branch
+
+      - name: Create pull request if tests fail
+        if: failure()
+        id: create_pr
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Revert changes due to test failure"
+          branch: revert-branch
+          base: main
+          title: "Revert changes due to test failure"
+          body: "This pull request reverts the changes made in the last commit due to test failure."
+
+      - name: Enable auto-merge if tests fail
+        if: failure()
+        uses: peter-evans/enable-pull-request-automerge@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
